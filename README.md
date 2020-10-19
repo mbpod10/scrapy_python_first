@@ -36,7 +36,7 @@ install ipython
 conda install ipython
 ```
 
-### Open Scrapy Shell
+### Open Scrapy Shell & Text Data GET
 
 - Open Shell
 
@@ -44,45 +44,228 @@ conda install ipython
 scrapy shell
 ```
 
-- See If We Get A Response
-
-```
-fetch("https://www.worldometers.info/world-population/population-by-country/")
-```
-
-- Make Request Into A Object Variable
-
-```
-r = scrapy.Request(url="https://www.worldometers.info/world-population/population-by-country/")
-```
-
-- Fetch
-
-```
-fetch(r)
-```
-
-- Get The HTML
-
-```
-response.body
-```
-
-- Do this
+Do the following `In` commands and make sure you get the correct responses
 
 ```s
-2020-10-16 12:45:30 [asyncio] DEBUG: Using selector: KqueueSelector
 In [1]: fetch("https://www.worldometers.info/world-population/population-by-country/")
 2020-10-16 13:27:53 [scrapy.core.engine] INFO: Spider opened
 2020-10-16 13:27:54 [scrapy.core.engine] DEBUG: Crawled (404) <GET https://www.worldometers.info/robots.txt> (referer: None)
 2020-10-16 13:27:54 [scrapy.core.engine] DEBUG: Crawled (200) <GET https://www.worldometers.info/world-population/population-by-country/> (referer: None)
 In [2]: r = scrapy.Request(url="https://www.worldometers.info/world-population/population-by-country/")
+
+
 In [3]: fetch(r)
+
 2020-10-16 13:33:27 [scrapy.core.engine] DEBUG: Crawled (200) <GET https://www.worldometers.info/world-population/population-by-country/> (referer: None)
 In [4]: response.body
+
 In [6]: view(response)
 Out[6]: True
+
 In [7]: title=response.xpath("//h1")
+
 In [8]: title
 Out[8]: [<Selector xpath='//h1' data='<h1>Countries in the world by populat...'>]
+
+In [10]: title=response.xpath("//h1/text()")
+
+In [11]: title
+Out[11]: [<Selector xpath='//h1/text()' data='Countries in the world by population ...'>]
+
+In [12]: title.get()
+Out[12]: 'Countries in the world by population (2020)'
+
+In [13]: title_css = response.css("h1::text")
+
+In [14]: title_css
+Out[14]: [<Selector xpath='descendant-or-self::h1/text()' data='Countries in the world by population ...'>]
+
+In [15]: title_css.get()
+Out[15]: 'Countries in the world by population (2020)'
+
+In [16]: countries = response.xpath("//td/a/text()").getall()
+
+In [17]: countries
+Out[17]:
+['China',
+ 'India',
+ 'United States',
+ 'Indonesia',
+...
+]
+
+In [18]: countries_css = response.css("td a::text").getall()
+
+In [19]: countries_css
+Out[19]:
+['China',
+ 'India',
+ 'United States',
+ 'Indonesia',
+ ...
+]
+```
+
+We are now getting the data, we can now modify the `countries.py` file
+
+```python
+# -*- coding: utf-8 -*-
+import scrapy
+
+
+class CountriesSpider(scrapy.Spider):
+    name = 'countries'
+    allowed_domains = ['www.worldometers.info/']
+    start_urls = [
+        'https://www.worldometers.info/world-population/population-by-country/']
+
+    def parse(self, response):
+        title = response.xpath("//h1/text()").get()
+        countries = response.xpath("//td/a/text()").getall()
+
+        yield{
+            'title': title,
+            'countries': countries
+        }
+
+```
+
+Now we can run the file to make a spider. At the same level as `scrapy.cfg` file run where countries is the name of the genspider we made earlier:
+
+```
+scrapy crawl countries
+```
+
+In the terminal, you should see a return object that includes `title` and a list called `countries`
+
+### X Path
+
+- Get all <div> tags
+
+```
+//div
+```
+
+- Get div tag with class name 'intro'
+
+```
+//div[@class='intro']
+```
+
+- Get p elements inside div with class name 'into'
+
+```
+//div[@class='intro']/p
+```
+
+- Get p elements inside div with class name 'into' AND 'outro'
+
+```
+//div[@class='intro' or @class='outro']/p
+```
+
+- Get TEXT inside p elements inside div with class name 'into' AND 'outro'
+
+```
+//div[@class='intro' or @class='outro']/p/text()
+```
+
+- get href attributes
+
+```
+//a/@href
+```
+
+- get href attributes that start with http and not https
+
+```
+//a[starts-with(@href, 'https')]
+```
+
+- get href attributes that start with fr
+
+```
+//a[ends-with(@href, 'fr')]
+```
+
+- get href attribute that contains word google
+
+```
+//a[contains(@href, 'google')]
+```
+
+- get text that contains the word france (inside html tags)
+
+```
+//a[contains(text(), 'France')]
+```
+
+- get based on first position
+
+```
+ul//[@id='items']/li[1]
+```
+
+- get based on first four elements
+
+```
+ul//[@id='items']/li[1 or 4]
+```
+
+- get based on position 1-4
+
+```
+ul//[@id='items']/li[position() = 1 or position() = 4]
+```
+
+- get based on first and last element
+
+```
+ul//[@id='items']/li[position() = 1 or position() = last()]
+```
+
+Get parent
+
+```
+//p[@id='unique']/parent::node()
+```
+
+Get all ancestors
+
+```
+//p[@id='unique']/ancestor::node()
+```
+
+# Get Stuff
+
+```
+scrapy shell "https://www.worldometers.info/world-population/population-by-country/"
+countries = response.xpath("//td/a")
+```
+
+We will use this output in our `counties.py`
+
+```python
+# -*- coding: utf-8 -*-
+import scrapy
+
+
+class CountriesSpider(scrapy.Spider):
+    name = 'countries'
+    allowed_domains = ['wwww.worldometers.info/']
+    start_urls = [
+        'https://www.worldometers.info/world-population/population-by-country/']
+
+    def parse(self, response):
+        countries = response.xpath("//td/a")
+
+        for country in countries:
+            name = country.xpath(".//text()").get()
+            link = country.xpath(".//@href").get()
+
+            yield {
+                'country_name': name,
+                'country_link': link
+            }
+
 ```
