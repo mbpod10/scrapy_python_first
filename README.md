@@ -1,5 +1,7 @@
 # SCRAPY
 
+`CMD + SHIFT + P` then select `python:select interpreter` select `virtual_workspace`
+
 ### Create New Project
 
 Activate ENV
@@ -252,7 +254,7 @@ import scrapy
 
 class CountriesSpider(scrapy.Spider):
     name = 'countries'
-    allowed_domains = ['wwww.worldometers.info/']
+    allowed_domains = ['worldometers.info/']
     start_urls = [
         'https://www.worldometers.info/world-population/population-by-country/']
 
@@ -269,3 +271,129 @@ class CountriesSpider(scrapy.Spider):
             }
 
 ```
+
+Get A Reponse From Each URL inside <a>
+
+```python
+# -*- coding: utf-8 -*-
+import scrapy
+
+
+class CountriesSpider(scrapy.Spider):
+    name = 'countries'
+    allowed_domains = ['worldometers.info']
+    start_urls = [
+        'https://www.worldometers.info/world-population/population-by-country/']
+
+    def parse(self, response):
+        countries = response.xpath("//td/a")
+        for country in countries:
+            name = country.xpath(".//text()").get()
+            link = country.xpath(".//@href").get()
+
+            # absolute_url = f"https://www.worldometers.info{link}"
+            # absolute_url = response.urljoin(link)
+
+            # yield scrapy.Request(url=absolute_url)
+            yield response.follow(url=link)
+
+```
+
+run `scrapy crawl countries`
+
+- Now we want to scrap each response we get from the response we just made.
+  - In other words, we want to get ALL the href links on the main page, go into those links then get more data from each of those individual pages.
+
+```python
+# -*- coding: utf-8 -*-
+import scrapy
+import logging
+
+
+class CountriesSpider(scrapy.Spider):
+    name = 'countries'
+    allowed_domains = ['worldometers.info']
+    start_urls = [
+        'https://www.worldometers.info/world-population/population-by-country/']
+
+    def parse(self, response):
+        countries = response.xpath("//td/a")
+        for country in countries:
+            name = country.xpath(".//text()").get()
+            link = country.xpath(".//@href").get()
+
+            yield response.follow(url=link, callback=self.parse_country)
+
+    def parse_country(self, response):
+        rows = response.xpath(
+            "(//table[@class='table table-striped table-bordered table-hover table-condensed table-list'])[1]/tbody/tr")
+        for row in rows:
+            year = row.xpath(".//td[1]/text()").get()
+            population = row.xpath(".//td[2]/strong/text()").get()
+
+            yield {
+                'year': year,
+                'population': population
+            }
+
+```
+
+Now we have the year and population in those years. Now we need the name of those rows
+Notice below that there is no name in the yield response
+
+```
+{'year': '1970', 'population': '55,982,144'}
+2020-10-19 11:43:21 [scrapy.core.scraper] DEBUG: Scraped from <200 https://www.worldometers.info/world-population/pakistan-population/>
+```
+
+```py
+# -*- coding: utf-8 -*-
+import scrapy
+import logging
+
+
+class CountriesSpider(scrapy.Spider):
+    name = 'countries'
+    allowed_domains = ['worldometers.info']
+    start_urls = [
+        'https://www.worldometers.info/world-population/population-by-country/']
+
+    def parse(self, response):
+        countries = response.xpath("//td/a")
+        for country in countries:
+            name = country.xpath(".//text()").get()
+            link = country.xpath(".//@href").get()
+
+            yield response.follow(url=link, callback=self.parse_country, meta={'country_name': name})
+
+    def parse_country(self, response):
+        name = response.request.meta['country_name']
+        rows = response.xpath(
+            "(//table[@class='table table-striped table-bordered table-hover table-condensed table-list'])[1]/tbody/tr")
+        for row in rows:
+            year = row.xpath(".//td[1]/text()").get()
+            population = row.xpath(".//td[2]/strong/text()").get()
+
+            yield {
+                'country_name': name,
+                'year': year,
+                'population': population
+            }
+```
+
+```
+2020-10-19 11:55:09 [scrapy.core.scraper] DEBUG: Scraped from <200 https://www.worldometers.info/world-population/philippines-population/>
+{'country_name': 'Philippines', 'year': '2005', 'population': '86,326,250'}
+```
+
+## Make the DataSet
+
+- JSON: ` scrapy crawl countries -o population_dataset.json`
+
+- CSV: `scrapy crawl countries -o population_dataset.csv`
+
+- XML: `scrapy crawl countries -o population_dataset.xml`
+
+https://www.cigabuy.com/consumer-electronics-c-56_75-pg-1.html
+
+consumer-electronics-c-56_75-pg-1
