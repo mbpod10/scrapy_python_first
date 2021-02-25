@@ -397,3 +397,11 @@ class CountriesSpider(scrapy.Spider):
 https://www.cigabuy.com/consumer-electronics-c-56_75-pg-1.html
 
 consumer-electronics-c-56_75-pg-1
+
+
+## Pagination
+The act of going to a different web page (like clicking next in a list) and receiving data from other pages
+
+ - This is from a different project
+
+First, we received the data that wished to get at the initial endpoint, now we cant to inspect the <b>NEXT or 2 ect</b> button that would allow the webpage to paginate. 
