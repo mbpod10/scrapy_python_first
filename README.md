@@ -408,3 +408,108 @@ First, we received the data that wished to get at the initial endpoint, now we c
 
 
 ![image of it](https://i.imgur.com/qHy6Pnn.png "pagination")
+
+Once we have the link to the href, in this case it is `response.xpath("//a[@class='page-link']/@href").get()`, we are going to set it to a variable and then create an if statement that says, that exists, then parse the page once again like this:
+
+```py
+next_page = response.xpath("//a[@class='page-link']/@href").get()
+        if next_page:
+            yield scrapy.Request(url=next_page, callback=self.parse)
+```
+
+so the whole spider file would look like:
+
+```py
+class GlassesDealsSpider(scrapy.Spider):
+    name = 'glasses_deals'
+    allowed_domains = ['www.glassesshop.com']
+    start_urls = ['http://www.glassesshop.com/bestsellers/']
+
+    def parse(self, response):
+        rows = response.xpath(
+            "//div[@class='col-12 pb-5 mb-lg-3 col-lg-4 product-list-row text-center product-list-item']")
+
+        for row in rows:
+            product_image = row.xpath(".//div[2]/a/img/@data-src[1]").get()
+            product_link = row.xpath(
+                ".//div[@class='p-title-block']/div/div/div/div[@class='p-title']/a/@href").get()
+            product_name = ' '.join(row.xpath(
+                ".//div[@class='p-title-block']/div/div/div/div[@class='p-title']/a/text()").get().split())
+            product_price = row.xpath(
+                ".//div[@class='p-title-block']/div[@class='mt-3']/div/div[2]/div/div/span/text()").get()
+
+            yield {
+                'product_image': product_image,
+                'product_link': product_link,
+                'product_name': product_name,
+                'product_price': product_price
+
+            }
+
+        next_page = response.xpath("//a[@class='page-link']/@href").get()
+        if next_page:
+            yield scrapy.Request(url=next_page, callback=self.parse)
+
+```
+
+## User Agent
+
+type into google `My User Agent`, this will give you an agent to your machine. Some website don't allow bots, so this user agent will be sent with request headers which will spoof the website and make it seem as though an actual person is accessing the webpage. 
+
+My User Agent = `Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36`
+
+We will create a function called `start_requests` which will include our start_url as well as our user-agent. This function has to be called `start_requests`
+
+```py
+def start_requests(self):
+        yield scrapy.Request(url='http://www.glassesshop.com/bestsellers/',
+                             callback=self.parse,
+                             headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36'})
+```
+
+we need to include this within our pagination as well like this:
+
+```py
+next_page = response.xpath("//a[@class='page-link']/@href").get()
+        if next_page:
+            yield scrapy.Request(url=next_page, callback=self.parse,
+                                 headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36'})
+```
+
+The whole file will look like this:
+```py
+class GlassesDealsSpider(scrapy.Spider):
+    name = 'glasses_deals'
+    allowed_domains = ['www.glassesshop.com']   
+
+    def start_requests(self):
+        yield scrapy.Request(url='http://www.glassesshop.com/bestsellers/',
+                             callback=self.parse,
+                             headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36'})
+
+    def parse(self, response):
+        rows = response.xpath(
+            "//div[@class='col-12 pb-5 mb-lg-3 col-lg-4 product-list-row text-center product-list-item']")
+
+        for row in rows:
+            product_image = row.xpath(".//div[2]/a/img/@data-src[1]").get()
+            product_link = row.xpath(
+                ".//div[@class='p-title-block']/div/div/div/div[@class='p-title']/a/@href").get()
+            product_name = ' '.join(row.xpath(
+                ".//div[@class='p-title-block']/div/div/div/div[@class='p-title']/a/text()").get().split())
+            product_price = row.xpath(
+                ".//div[@class='p-title-block']/div[@class='mt-3']/div/div[2]/div/div/span/text()").get()
+
+            yield {
+                'product_image': product_image,
+                'product_link': product_link,
+                'product_name': product_name,
+                'product_price': product_price
+            }
+
+        next_page = response.xpath("//a[@class='page-link']/@href").get()
+        if next_page:
+            yield scrapy.Request(url=next_page, callback=self.parse,
+                                 headers={'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36'})
+
+```
