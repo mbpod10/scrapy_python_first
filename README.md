@@ -516,7 +516,7 @@ class GlassesDealsSpider(scrapy.Spider):
 
 Execute in the console with `scrapy crawl __file_name__`
 
-# SRAPY CRAWL SPIDER TEMPLATE
+# SCRAPY CRAWL SPIDER TEMPLATE
 
 COMMAND LINE:
 
@@ -544,6 +544,7 @@ class BestMoviesSpider(CrawlSpider):
 
     rules = (
         Rule(LinkExtractor(
+          # Think of the restrict_xpath as the for loop we used in the previous project but use the //a to go to the different pages
             restrict_xpaths="//td[@class='titleColumn']/a"), callback='parse_item', follow=True, process_request='set_user_agent'),
     )
 
@@ -559,6 +560,67 @@ class BestMoviesSpider(CrawlSpider):
             'rating': response.xpath("//div[@class='ratingValue']/strong/span/text()").get(),
             'movie_url': response.url,
             'User-Agent': response.request.headers['User-Agent']
+        }
+
+```
+
+## PAGINATION
+
+to paginate, we need to add another rule to the rules tuple, simply find the next link and add the xpath to the rules
+```py
+rules = (
+        Rule(LinkExtractor(
+            restrict_xpaths="//article[@class='product_pod']/h3/a"), callback='parse_item', follow=True),
+        Rule(LinkExtractor(
+             restrict_xpaths="//li[@class='next']/a"
+             ))
+    )
+```
+
+### FIX UTF ENCODING
+in `settings.py` add `FEED_EXPORT_ENCODING = 'utf-8'`
+
+### FIX SPACES IN OUTPUTS
+add a normalize-space
+```py
+'duration': response.xpath("normalize-space(//time[1]/text())").get(),
+```
+
+```py
+# -*- coding: utf-8 -*-
+import scrapy
+from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import CrawlSpider, Rule
+
+
+class BookDealsSpider(CrawlSpider):
+    name = 'book_deals'
+    allowed_domains = ['books.toscrape.com']
+    # start_urls = ['https://books.toscrape.com/']
+
+    user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_0_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.192 Safari/537.36'
+
+    def start_requests(self):
+        yield scrapy.Request(url='https://books.toscrape.com/', headers={"User-Agent": self.user_agent})
+
+    rules = (
+        Rule(LinkExtractor(
+            restrict_xpaths="//article[@class='product_pod']/h3/a"), callback='parse_item', follow=True, process_request='set_user_agent'),
+        Rule(LinkExtractor(
+             restrict_xpaths="//li[@class='next']/a"), follow=True, process_request='set_user_agent')
+    )
+
+    def set_user_agent(self, request):
+        request.headers['User-Agent'] = self.user_agent
+        return request
+
+    def parse_item(self, response):
+        book_name = response.xpath("//h1[1]/text()").get()
+        price = response.xpath("//p[@class='price_color']/text()").get()
+
+        yield {
+            'book_name': book_name,
+            'price': price,
         }
 
 ```
