@@ -585,6 +585,7 @@ add a normalize-space
 ```py
 'duration': response.xpath("normalize-space(//time[1]/text())").get(),
 ```
+### FINAL OUTPUT
 
 ```py
 # -*- coding: utf-8 -*-
@@ -624,3 +625,94 @@ class BookDealsSpider(CrawlSpider):
         }
 
 ```
+
+## PIPELINES
+
+In the scrapy project folder, go to `pipelines.py`
+
+```py
+# -*- coding: utf-8 -*-
+
+# Define your item pipelines here
+#
+# Don't forget to add your pipeline to the ITEM_PIPELINES setting
+# See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
+
+import logging
+class BooksPipeline(object):
+
+    def open_spider(self, spider):
+        logging.warning("SPIDER OPENED FROM PIPELINE")
+
+    def close_spider(self, spider):
+        logging.warning("SPIDER CLOSED FROM PIPELINE")
+
+    def process_item(self, item, spider):
+        return item
+
+```
+
+Now go to `settings.py` and uncomment the `ITEM_PIPELINES` dictionary
+```py
+ITEM_PIPELINES = {
+    'books.pipelines.BooksPipeline': 300,
+}
+```
+
+```
+# Beginning of output
+2021-02-26 14:09:03 [root] WARNING: SPIDER OPENED FROM PIPELINE
+# End of output
+2021-02-26 14:10:57 [root] WARNING: SPIDER CLOSED FROM PIPELINE
+```
+
+## Storing DataSet to MongoDB
+
+- go to https://www.mongodb.com/cloud
+- sign in 
+- create a new project and name it whatever
+- select create new cluster
+- select create cluster (this can take 7-10 minutes)
+- go to terminal prompt and make sure your virtual environment is active
+```
+  conda activate virtual_workspace
+  conda install pymongo dnspython
+```
+- go to Database Access, and add a user with password; you need this password in pymongo string
+- go to clusters and then NETWORK ACCESS and enter 0.0.0.0/0 which will whitelist the database.
+- then go to connect in clusters, 
+  - click 'Connect your application' 
+  - driver as Python
+  - version as 3.6 or later
+  - then copy the string template and add it to your `pipeline.py` file om pymongo.MongoClient("")
+- then go to the `pipelines.py` file
+  
+```py
+import logging
+import pymongo
+
+class MongodbPipeline(object):
+    # Name of spider and collection in mongodb
+    collection_name = "book_deals"
+    # 
+    def open_spider(self, spider):
+        self.client = pymongo.MongoClient(
+            "mongodb+srv://brock:123@cluster0.rvyih.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
+        self.db = self.client["BOOKS"]
+
+    def close_spider(self, spider):
+        self.client.close()
+
+    def process_item(self, item, spider):
+        self.db[self.collection_name].insert(item)
+        return item
+
+  ```
+now, go to the `settings.py` file and add this to the ITEM_PIPELINES dictionary
+
+```py
+ITEM_PIPELINES = {
+    'books.pipelines.MongodbPipeline': 300
+}
+```
+now run `scrapy crawl book_deals` then go to mongo => clusters => collections => BOOKS => BOOKS.book_deals
