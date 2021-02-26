@@ -716,3 +716,38 @@ ITEM_PIPELINES = {
 }
 ```
 now run `scrapy crawl book_deals` then go to mongo => clusters => collections => BOOKS => BOOKS.book_deals
+
+## SQLITE 3
+
+```py
+class SQLitePipeline(object):
+
+    def open_spider(self, spider):
+        self.connection = sqlite3.connect("books.db")
+        self.c = self.connection.cursor()
+        self.c.execute('''
+            CREATE TABLE book_deals (
+              book_name TEXT,
+              price TEXT
+            )
+        ''')
+        self.connection.commit()
+
+    def close_spider(self, spider):
+        self.connection.close()
+
+    def process_item(self, item, spider):
+        self.c.execute('''
+            INSERT INTO book_deals (book_name, price) VALUES(?,?)
+        ''', (
+            item.get('book_name'),
+            item.get('price')
+        ))
+        self.connection.commit()
+        return item
+```
+```py
+ITEM_PIPELINES = {    
+    'books.pipelines.SQLitePipeline': 300
+}
+```
